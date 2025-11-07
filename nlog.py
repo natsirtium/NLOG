@@ -9,7 +9,7 @@ class NlogObject:
         self.logPrinted = 0
         self.logText = [] #strings
         self.projects = [] #lists [lastTimeUpdated:int|float, threadName:str, projectName:str, percentDone:int|float, spinner:str]
-        self.doLatistLog = doLatestLog
+        self.doLatestLog = doLatestLog
         self.logLocation = logLocation
         self.inputText = ""
         self.prompt = None
@@ -122,10 +122,10 @@ class NlogObject:
             else:
                 sys.stdout.write("INVALID LINE\n")
                 self.logPrinted += 1
-        if self.doLatistLog:
+        if self.doLatestLog:
             # Create the log directory if it doesn't exist
-            os.makedirs(os.path.dirname(os.path.abspath(f"{self.logLocation}latest.log")), exist_ok=True)
-            with open(f"{self.logLocation}{self.sessionName}latest.log", "a") as f:
+            os.makedirs(os.path.dirname(os.path.abspath(f"{self.logLocation}_latest.log")), exist_ok=True)
+            with open(f"{self.logLocation}{self.sessionName}_latest.log", "a") as f:
                 # write only the entries printed in this flush (do not re-write the last printed line)
                 for log_entry in self.logText[start_printed:self.logPrinted]:
                     f.write(f"{log_entry}\n")
@@ -172,9 +172,9 @@ class NlogObject:
         
         sys.stdout.flush()
 
-    def saveLogsToFile(self, fileLocation:str, fileNameOveride:str|None=None):
-        if fileNameOveride:
-            fileName = fileNameOveride
+    def saveLogsToFile(self, fileLocation:str, fileNameOverride:str|None=None):
+        if fileNameOverride:
+            fileName = fileNameOverride
         else:
             fileName = f"log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         # ensure directory exists and write all collected log lines to the target file
