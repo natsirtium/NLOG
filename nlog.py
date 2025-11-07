@@ -1,7 +1,7 @@
 """
 Custom logging system for my projects
 """
-import sys, datetime, time, math, os
+import sys, datetime, time, math, os, pynput, threading
 
 class NlogObject:
     def __init__(self, doLatestLog:bool=True, logLocation:str="logs/", showDateInLogs:bool=False):
@@ -11,6 +11,8 @@ class NlogObject:
         self.projects = [] #lists [lastTimeUpdated:int|float, threadName:str, projectName:str, percentDone:int|float, spinner:str]
         self.doLatistLog = doLatestLog
         self.logLocation = logLocation
+        self.inputText = ""
+        self.prompt = None
         if doLatestLog:
             day = datetime.datetime.now().strftime("%Y-%m-%d")
             for i in range(1, 1000):
@@ -20,10 +22,11 @@ class NlogObject:
         else:
             self.sessionName = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
+        threading.Thread(target=self.key_listener, daemon=True).start()
 
         self.log(f"-----START LOG FOR {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}-----", 1)
 
-    def log(self, content:str, priority:int, thread:int|None=None):
+    def log(self, content:str, priority:int, thread:str|None=None):
         
         if not self.showDateInLogs:
             currentTime = datetime.datetime.now().strftime("%H:%M:%S")
@@ -32,7 +35,10 @@ class NlogObject:
 
         priorityNames = ["VERBOSE", "LOG", "WARN", "ERROR", "CRITICAL"]
 
-        self.logText.append("[" + priorityNames[priority] + "-" + currentTime + "]: " + content)
+        threadText = f" [{thread}]" if thread else ""
+
+
+        self.logText.append("[" + priorityNames[priority] + "-" + currentTime + f"]{threadText}: " + content)
         match priority: #Might want to add more specific functionality later
             case 0|1|2:
                 pass
@@ -96,9 +102,13 @@ class NlogObject:
             return
         
         ANSI = self.ANSICodes
+        if self.prompt:
+            numbPrompts = 1
+        else:
+            numbPrompts = 0
 
         if len(self.projects) >= 1:
-            sys.stdout.write(ANSI["ESCAPE"] + str(len(self.projects)) + ANSI["CURSORUP"])
+            sys.stdout.write(ANSI["ESCAPE"] + str(len(self.projects) + numbPrompts) + ANSI["CURSORUP"])
             sys.stdout.write(ANSI["ESCAPE"] + ANSI["FLUSH"])
         
         startTime = time.time()
@@ -150,7 +160,15 @@ class NlogObject:
                 numbEmpty = 10-numbFilled
                 line += "▓"*numbFilled + "░"*numbEmpty
 
-            sys.stdout.write(line + "\n")
+            ANSIFlush = self.ANSICodes["ESCAPE"] + self.ANSICodes["FLUSH"]
+
+            sys.stdout.write(ANSIFlush + line + "\n")
+        
+        if self.prompt:
+            spinnerNumber = math.floor(time.time() % 3)
+            promptSpinner = "."*spinnerNumber + " "*(2 - spinnerNumber)
+
+            sys.stdout.write(self.prompt + promptSpinner + self.inputText + "\n")
         
         sys.stdout.flush()
 
@@ -165,6 +183,41 @@ class NlogObject:
         with open(full_path, "a") as f:
             for logLine in self.logText:
                 f.write(f"{logLine}\n")
+
+    def on_key(self, key):
+        k = pynput.keyboard
+
+        if key == k.Key.enter:
+            self.inputText += "\n"
+
+        # use getattr to avoid attribute errors.
+        ch = getattr(key, "char", None)
+        if ch:
+            self.inputText += ch
+            
+        self.flushLogs(True)
+
+    def key_listener(self):
+        with pynput.keyboard.Listener(on_press=self.on_key) as listener:
+            listener.join()
+        
+    def input(self, prompt:str=""):
+        
+        self.inputText = ""
+        self.prompt = prompt
+        try:
+            while True:
+                if "\n" in self.inputText:
+                    result = self.inputText.replace("\n", "")
+                    self.inputText = ""
+                    self.prompt = None
+                    return result
+                time.sleep(0.1)
+        except:
+            self.prompt = None #This can't be auto erased, so it **must** be reset after we are done with it.
+        
+        
+            
 
     ANSICodes = {
         #ANSI escape codes
