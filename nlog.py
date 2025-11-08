@@ -1,10 +1,18 @@
 """
-Custom logging system for my projects
+NLOG - A simple logging library for Python with multi-threading support and project progress tracking.
 """
-import sys, datetime, time, math, os, pynput, threading
+import sys
+import os
+import time
+import math
+import datetime
+import threading
+pynput = None # will be imported only if not in headless mode
+
 
 class NlogObject:
   def __init__(self, doLatestLog:bool=True, logLocation:str="logs/", showDateInLogs:bool=False, headless:bool=False):
+    global pynput
     self.showDateInLogs = showDateInLogs
     self.logPrinted = 0
     self.logText = [] #strings
@@ -30,7 +38,9 @@ class NlogObject:
     else:
       self.sessionName = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
-    threading.Thread(target=self.key_listener, daemon=True).start()
+    if not headless:
+      pynput = __import__("pynput")
+      threading.Thread(target=self.keyListener, daemon=True).start()
 
     self.log(f"-----START LOG FOR {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}-----", 1)
 
@@ -59,7 +69,7 @@ class NlogObject:
         case 3|4:
           self.flushLogs()
     
-  def generate_spinner(self):
+  def generateSpinner(self):
     """
     A helper function to generate a spinner based on the current time.
     """
@@ -73,16 +83,16 @@ class NlogObject:
       case 2:
         return "[░░▓]"
 
-  def start_project(self, threadName:str|None, projectName:str):
+  def startProject(self, threadName:str|None, projectName:str):
     """
     Starts a project, i.e. a loading bar or thread progress.
     `threadName` : The name of the thread to be attached to the project, if this isn't a thread pass None
     `projectName` : A unique identifying string for the project.    
     """
     with self.project_lock:
-      self.projects.append([time.time(), projectName, threadName, 0.0, self.generate_spinner()])
+      self.projects.append([time.time(), projectName, threadName, 0.0, self.generateSpinner()])
 
-  def update_project(self, projectName:str, percentage:int|float|None=None):
+  def updateProject(self, projectName:str, percentage:int|float|None=None):
     """
     Updates a given project (uniquely identified by `projectName`). Should be called even without a percentage value in the action loop of the process, as that updates the spinner, and shows the user the process is still active. If you don't for 5 seconds (default), the project will be marked as "STALE".
     `projectName` : The unique identifying string for the project to be updated.
@@ -98,13 +108,13 @@ class NlogObject:
       
       index = names.index(projectName)
       self.projects[index][0] = time.time()
-      self.projects[index][4] = self.generate_spinner()
+      self.projects[index][4] = self.generateSpinner()
       if percentage:
         self.projects[index][3] = percentage    
 
       return 1
   
-  def close_project(self, projectName:str):
+  def closeProject(self, projectName:str):
     """
     Closes a given project (uniquely identified by `projectName`).
     `projectName` : The unique identifying string for the project to be closed.
@@ -222,11 +232,14 @@ class NlogObject:
         for logLine in self.logText:
           f.write(f"{logLine}\n")
 
-  def on_key(self, key):
+  def onKey(self, key):
     with self.io_lock:
       """
       Handles key press events.
       """
+      if not pynput:
+        self.log("Key input attempted in headless mode. Ignoring.", 3)
+        return
       k = pynput.keyboard
 
       if key == k.Key.enter:
@@ -239,14 +252,19 @@ class NlogObject:
         
       self.flushLogs(True)
 
-  def key_listener(self):
+  def keyListener(self):
     """
     To be called as a thread. Listens for keyboard input.
     """
-    with pynput.keyboard.Listener(on_press=self.on_key) as listener:
+    if not pynput:
+      self.log("Key listener attempted to start in headless mode. Ignoring.", 3)
+      return
+    with pynput.keyboard.Listener(on_press=self.onKey) as listener:
       listener.join()
     
   def input(self, prompt:str):
+    if self.headless:
+      self.log("Attempted to use input() in headless mode. Defaulting to empty string.", 3)
     with self.io_lock:
       """
       Prompts the user for input, while still allowing logs to be flushed in other threads.
@@ -268,7 +286,6 @@ class NlogObject:
       except:
         self.prompt = None #!This can't be auto erased, so it **must** be reset after we are done with it.
       
-
   ANSICodes = {
     #ANSI escape codes
     "ESCAPE" : "\033[",

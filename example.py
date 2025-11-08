@@ -2,9 +2,9 @@ import nlog, time, threading, random
 
 logger = nlog.NlogObject()
 
-logger.start_project("task-thread", "Task")
+logger.startProject("task-thread", "Task")
 
-def example_process():
+def exampleProcess():
   global logger
   import tkinter as tk
   root = tk.Tk()
@@ -16,19 +16,19 @@ def example_process():
   b1.pack()
 
   def update():
-    logger.update_project("Task")
+    logger.updateProject("Task")
   b2 = tk.Button(root, text="Update", command=update)
   b2.pack()
 
   root.mainloop()
 
-def log_thread():
+def logThread():
   while True:
     logger.flushLogs(True)
     time.sleep(0.5)
 
-threading.Thread(target=example_process, daemon=True).start()
-threading.Thread(target=log_thread, daemon=True).start()
+threading.Thread(target=exampleProcess, daemon=True).start()
+threading.Thread(target=logThread, daemon=True).start()
 
 logger.input("Press enter to stop")
 
