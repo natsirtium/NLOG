@@ -13,6 +13,7 @@ class NlogObject:
         self.logLocation = logLocation
         self.inputText = ""
         self.prompt = None
+        self.priorityNames = ["VERBOSE", "LOG", "WARN", "ERROR", "CRITICAL"]
         if doLatestLog:
             day = datetime.datetime.now().strftime("%Y-%m-%d")
             for i in range(1, 1000):
@@ -27,18 +28,24 @@ class NlogObject:
         self.log(f"-----START LOG FOR {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}-----", 1)
 
     def log(self, content:str, priority:int, thread:str|None=None):
-        
+        """
+        General purpose logger. Outputs to the console when not in headless mode.
+        `content` : The text you wish to log
+        `priority` : The importance of the log, with the default priorities being:
+        0 - Verbose, 1 - Log, 2 - Warn, 3 - Error, 4 - Critical. Note that verbose under normal operation does not output without the `verbose` flag being set.
+        `thread` : if this is a thread, then this should be the thread's name. If not, leave as None.
+        """
+
         if not self.showDateInLogs:
             currentTime = datetime.datetime.now().strftime("%H:%M:%S")
         else:
             currentTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        priorityNames = ["VERBOSE", "LOG", "WARN", "ERROR", "CRITICAL"]
+        
 
         threadText = f" [{thread}]" if thread else ""
 
-
-        self.logText.append("[" + priorityNames[priority] + "-" + currentTime + f"]{threadText}: " + content)
+        self.logText.append("[" + self.priorityNames[priority] + "-" + currentTime + f"]{threadText}: " + content)
         match priority: #Might want to add more specific functionality later
             case 0|1|2:
                 pass
@@ -46,6 +53,9 @@ class NlogObject:
                 self.flushLogs()
     
     def generate_spinner(self):
+        """
+        A helper function to generate a spinner based on the current time.
+        """
         Time = time.time()
         state = math.floor(Time%4)
         match state:
@@ -58,9 +68,19 @@ class NlogObject:
 
 
     def start_project(self, threadName:str|None, projectName:str):
+        """
+        Starts a project, i.e. a loading bar or thread progress.
+        `threadName` : The name of the thread to be attached to the project, if this isn't a thread pass None
+        `projectName` : A unique identifying string for the project.        
+        """
         self.projects.append([time.time(), projectName, threadName, 0.0, self.generate_spinner()])
 
     def update_project(self, projectName:str, percentage:int|float|None=None):
+        """
+        Updates a given project (uniquely identified by `projectName`). Should be called even without a percentage value in the action loop of the process, as that updates the spinner, and shows the user the process is still active. If you don't for 5 seconds (default), the project will be marked as "STALE".
+        `projectName` : The unique identifying string for the project to be updated.
+        `percentage` : The percentage of completion for the project, from 0 to 100. If `None`, the percentage will not be updated.
+        """
         if not self.projects:
             return -1  # no projects to update
 
@@ -82,6 +102,11 @@ class NlogObject:
         return 1
     
     def close_project(self, projectName:str):
+        """
+        Closes a given project (uniquely identified by `projectName`).
+        `projectName` : The unique identifying string for the project to be closed.
+        """
+
         if not self.projects:
             return -1  # no projects to close
 
@@ -98,6 +123,11 @@ class NlogObject:
 
 
     def flushLogs(self, forceUpdate=False):
+        """
+        Flushes the logs to the console and file. If `forceUpdate` is True, it will update even if there are no new log lines.
+        `forceUpdate` : If True, forces an update even if there are no new log lines.
+        """
+
         if not len(self.logText) > self.logPrinted and not forceUpdate:
             return
         
@@ -173,6 +203,11 @@ class NlogObject:
         sys.stdout.flush()
 
     def saveLogsToFile(self, fileLocation:str, fileNameOverride:str|None=None):
+        """
+        Saves the logs to a file.
+        `fileLocation` : The directory where the log file will be saved.
+        `fileNameOverride` : If provided, this will be the name of the log file. If None, a default name based on the current date and time will be used.
+        """
         if fileNameOverride:
             fileName = fileNameOverride
         else:
@@ -185,6 +220,9 @@ class NlogObject:
                 f.write(f"{logLine}\n")
 
     def on_key(self, key):
+        """
+        Handles key press events.
+        """
         k = pynput.keyboard
 
         if key == k.Key.enter:
@@ -198,11 +236,18 @@ class NlogObject:
         self.flushLogs(True)
 
     def key_listener(self):
+        """
+        To be called as a thread. Listens for keyboard input.
+        """
         with pynput.keyboard.Listener(on_press=self.on_key) as listener:
             listener.join()
         
-    def input(self, prompt:str=""):
-        
+    def input(self, prompt:str):
+        """
+        **KNOWN TO BE UNSTABLE WITH MULTITHREADING. Use at your own risk.**
+        Prompts the user for input, while still allowing logs to be flushed in other threads.
+        `prompt` : The prompt text to display to the user.
+        """
         self.inputText = ""
         self.prompt = prompt
         try:
