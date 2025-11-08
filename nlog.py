@@ -195,8 +195,8 @@ class NlogObject:
       sys.stdout.write(ANSIFlush + line + "\n")
     
     if self.prompt:
-      spinnerNumber = math.floor(time.time() % 3)
-      promptSpinner = "."*spinnerNumber + " "*(2 - spinnerNumber)
+      spinnerNumber = math.floor(time.time() % 3) + 1
+      promptSpinner = "."*spinnerNumber + " "*(3- spinnerNumber)
 
       sys.stdout.write(self.prompt + promptSpinner + self.inputText + "\n")
     

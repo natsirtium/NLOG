@@ -1,4 +1,4 @@
-import nlog, time, threading
+import nlog, time, threading, random
 
 logger = nlog.NlogObject()
 
@@ -11,13 +11,13 @@ def example_process():
   root.title("Example")
 
   def log(): 
-    logger.log("Hi", 1, "task-thread")
-  b1 = tk.Button(root, text="log", command=log)
+    logger.log("I'm a log", random.randint(0, 4), "task-thread")
+  b1 = tk.Button(root, text="Log", command=log)
   b1.pack()
 
   def update():
     logger.update_project("Task")
-  b2 = tk.Button(root, text="update", command=update)
+  b2 = tk.Button(root, text="Update", command=update)
   b2.pack()
 
   root.mainloop()
@@ -30,5 +30,5 @@ def log_thread():
 threading.Thread(target=example_process, daemon=True).start()
 threading.Thread(target=log_thread, daemon=True).start()
 
-logger.input("Press any enter to stop")
+logger.input("Press enter to stop")
 
