@@ -4,7 +4,7 @@ Custom logging system for my projects
 import sys, datetime, time, math, os, pynput, threading
 
 class NlogObject:
-  def __init__(self, doLatestLog:bool=True, logLocation:str="logs/", showDateInLogs:bool=False):
+  def __init__(self, doLatestLog:bool=True, logLocation:str="logs/", showDateInLogs:bool=False, headless:bool=False):
     self.showDateInLogs = showDateInLogs
     self.logPrinted = 0
     self.logText = [] #strings
@@ -14,8 +14,9 @@ class NlogObject:
     self.inputText = ""
     self.prompt = None
     self.priorityNames = ["VERBOSE", "LOG", "WARN", "ERROR", "CRITICAL"]
-    
-    # Add locks for thread safety
+    self.headless = headless
+
+
     self.log_lock = threading.Lock()
     self.project_lock = threading.Lock()
     self.io_lock = threading.Lock()
@@ -48,7 +49,6 @@ class NlogObject:
       else:
         currentTime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-      
 
       threadText = f" [{thread}]" if thread else ""
 
@@ -200,7 +200,8 @@ class NlogObject:
 
         sys.stdout.write(self.prompt + promptSpinner + self.inputText + "\n")
       
-      sys.stdout.flush()
+      if not self.headless:
+        sys.stdout.flush()
 
   def saveLogsToFile(self, fileLocation:str, fileNameOverride:str|None=None):
     with self.log_lock:
@@ -248,7 +249,6 @@ class NlogObject:
   def input(self, prompt:str):
     with self.io_lock:
       """
-      **KNOWN TO BE UNSTABLE WITH MULTITHREADING. Use at your own risk.**
       Prompts the user for input, while still allowing logs to be flushed in other threads.
       `prompt` : The prompt text to display to the user.
       """
