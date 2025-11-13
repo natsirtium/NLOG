@@ -241,10 +241,12 @@ class NlogObject:
           f.write(f"{logLine}\n")
 
   def onKey(self, key) -> None:
+    """
+    Handles key press events.
+    """
+
     with self.io_lock:
-      """
-      Handles key press events.
-      """
+
       if not pynput:
         self.log("Key input attempted in headless mode. Ignoring.", 3)
         return
@@ -267,17 +269,24 @@ class NlogObject:
     if not pynput:
       self.log("Key listener attempted to start in headless mode. Ignoring.", 3)
       return
-    with pynput.keyboard.Listener(on_press=self.onKey) as listener:
-      listener.join()
+    while True:
+      try:
+        with pynput.keyboard.Listener(on_press=self.onKey) as listener:
+          listener.join()
+      except Exception as e:
+        self.log(f"Key listener crashed with exception: {e}. Restarting...", 4)
+        self.flushLogs(True)
+        time.sleep(0.5)
     
   def input(self, prompt:str) -> str:
+    """
+    Prompts the user for input, while still allowing logs to be flushed in other threads.
+    `prompt` : The prompt text to display to the user.
+    """
     if self.headless:
       self.log("Attempted to use input() in headless mode. Defaulting to empty string.", 3)
     with self.io_lock:
-      """
-      Prompts the user for input, while still allowing logs to be flushed in other threads.
-      `prompt` : The prompt text to display to the user.
-      """
+      
       self.inputText = ""
       self.prompt = prompt
 
@@ -285,8 +294,9 @@ class NlogObject:
         while True:
           if not "\n" in self.inputText:
             time.sleep(0.1)
+            self.flushLogs(True)
             continue
-          
+
           result = self.inputText.replace("\n", "")
           self.inputText = ""
           self.prompt = None
